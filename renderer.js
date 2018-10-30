@@ -6,6 +6,19 @@
 //export { kont }; 
 
 const ipPrefix = "192.168.0.";
+var ModbusRTU = require("modbus-serial");
+
+var ping = require('ping');
+
+
+
+
+
+
+
+
+
+
 
 let KnownLfCardList = 
 [
@@ -35,70 +48,157 @@ let KnownLfCardList =
     }
 ]
 
-
-// let KnownLfCardList = 
-// [
-
-//     {
-//         "ip" :ipPrefix + "206",
-//         "name" :"Underlay CManage Address"
-//     }
-// ]
-
-var ModbusRTU = require("modbus-serial");
-let PingList = [];
-setTimeout(createObject,100);
-
-function createObject()
+//pff who needs classes when your lazy
+function addModbusClient()
 {
-    let container = document.getElementById("MainTable");
-    for(let i = 0 ; i < KnownLfCardList.length ; ++i)
+    for(let obj of KnownLfCardList)
     {
-        let ip = KnownLfCardList[i].ip;
-        let name = KnownLfCardList[i].name;
-        
-        KnownLfCardList[i]["modBus"] = new ModbusRTU();
-        let p = document.createElement("tr");
-        p.id = KnownLfCardList[i].ip;
-        p.classList.add("table-warning");
-        p.innerHTML = 
-        `
-
-
-            <td>${ip} </td>
-            <td>${name} </td>
-            <td id="${ip}Conection">Connecting</td>
-            <td id="${ip}Ping">Connecting</td>
-            <td id="${ip}Freq"></td>
-            <td id="${ip}deviation"></td>
-            <td id="${ip}baud"></td>
-            <td><button type="button" class="btn btn-primary" data-toggle="modal" data-target="#setParametersModal" data-destip="${ip}">Set Lf parametes</button></td>
-           
-  
-
-  
-        `
-        container.appendChild(p);  
+        obj["modBus"] = new ModbusRTU();
     }
-    ConnectObject();
 }
 
-function ConnectObject()
+function AddToTableFunc(tableBody)
+{
+    let p = document.createElement("tr");
+    let ip = this.ip;
+    let name = this.name;
+    p.id = ip;
+    p.classList.add("table-warning");
+    p.innerHTML = 
+    `
+        <td>${ip} </td>
+        <td>${name} </td>
+        <td id="${ip}Conection">Connecting</td>
+        <td id="${ip}Ping">Connecting</td>
+        <td id="${ip}Freq"></td>
+        <td id="${ip}deviation"></td>
+        <td id="${ip}baud"></td>
+        <td><button type="button" class="btn btn-primary" data-toggle="modal" data-target="#setParametersModal" data-destip="${ip}">Set Lf parametes</button></td> 
+    `
+    tableBody.appendChild(p); 
+}
+
+
+
+function ConnectedModbus()
+{
+    console.log("COnnecting " + this.ip);
+    
+    //let Obj.modBus = Obj.modBus;
+    let ip = this.ip;
+    this.modBus.close();
+
+    setTimeout(()=>{
+        this.modBus.connectTCP(this.ip, { port: 502 })
+        .then(()=>{
+            setConProperties.call(this)
+            console.log("Connected");
+            UpdateConnected.call(this,true);
+ 
+            //setTimeout(()=>{ReadHolding(Obj)},100) 
+        })
+        .catch((e)=> {
+            console.log(e.message);
+
+            console.log("connection Error Reconecting")
+            UpdateConnected.call(this,false);
+            setTimeout(()=>{ConnectedModbus.call(this)},3000) 
+        });
+
+    },500);   
+}
+
+function setConProperties() {
+    
+    let id = parseInt(this.ip.substring(this.ip.length -3));
+    console.log("set con prop  ");
+    console.log(id);
+    this.modBus.setID(id);
+    this.modBus.setTimeout(2800);
+
+
+}
+
+function UpdateConnected(connected)
 {
     
-    for(let i = 0 ; i < KnownLfCardList.length ; ++i)
+    let id = this.ip + "Conection";
+    let container = document.getElementById(id);
+    let container2 = document.getElementById(this.ip);
+    
+    if(connected)
     {
-        ConnectedModbus(KnownLfCardList[i])
-        PingList.push(KnownLfCardList[i].ip)
-        
-    }
+        container.innerHTML = "<p style='color: green;'>True</p>";
 
-    PinallCards();
-    setInterval(PinallCards,2000);
-        
+        container2.classList.remove("table-warning");
+        container2.classList.add("table-success");
+    
+
+
+    }else{
+        container.innerHTML = "<p style='color: red;'>False</p>";
+
+        container2.classList.remove("table-success");
+        container2.classList.add("table-warning");
+    
+    }
+   
+    
 
 }
-function PinallCards()
+
+
+function ReadHolding()
+{
+    console.log("read Holding")
+
+    //let Obj.modBus = Obj.modBus;
+    this.modBus.readHoldingRegisters(0, 5)
+    .then((data)=>{
+        
+        console.log(data.data);
+        UpdateConnected.call(this,true);
+        UpdateData.call(this,data.data);
+        setTimeout(()=>{ReadHolding(Obj)},2000);
+    }).catch(
+        
+       (reason) => {
+            
+            console.log('Handle rejected promise ('+reason+') here.');
+            console.log(reason);
+            setTimeout(()=>{ConnectedModbus.call(this)},3000) 
+            UpdateConnected.call(this,false);
+            
+    });;
+
+}
+
+
+function UpdateData(data)
+{
+    
+    let idFreq = this.ip + "Freq";
+    let containerFreq = document.getElementById(idFreq);
+    containerFreq.innerHTML = `<p style='color: green;'>${data[0]}</p>`;
+
+    let iddeviation= this.ip + "deviation";
+    let containerDev = document.getElementById(iddeviation);
+    containerDev.innerHTML = `<p style='color: green;'>${data[1]}</p>`;
+
+    let idbaud = this.ip + "baud";
+    let containerBaud = document.getElementById(idbaud);
+    containerBaud.innerHTML = `<p style='color: green;'>${data[2]}</p>`;
+        
+
+
+}
+
+
+
+// 
+
+
+function PinallCards(PingList)
 {
     PingList.forEach(function(host){
         ping.sys.probe(host, function(isAlive)
@@ -129,132 +229,38 @@ function SetPing(val,ip)
     }
 }
 
-function ConnectedModbus(Obj)
+
+
+
+
+//document . ready = it's been a while
+$( document ).ready(function() 
 {
-    console.log("COnnecting " + Obj.ip);
+    let pingList = [];
     
-    //let Obj.modBus = Obj.modBus;
-    let ip = Obj.ip;
-    Obj.modBus.close();
-
-    setTimeout(()=>{
-        Obj.modBus.connectTCP(Obj.ip, { port: 502 })
-        .then(()=>{
-            setConProperties(Obj)
-            console.log("Connected");
-            UpdateConnected(Obj,true);
- 
-            setTimeout(()=>{ReadHolding(Obj)},100) 
-        })
-        .catch((e)=> {
-            console.log(e.message);
-            console.log(Obj)
-            console.log("connection Error Reconecting")
-            UpdateConnected(Obj,false);
-            setTimeout(()=>{ConnectedModbus(Obj)},3000) 
-        });
-
-    },500);   
-}
-
-
-function ReadHolding(Obj)
-{
-    console.log("read Holding")
-    console.log(Obj);
-    //let Obj.modBus = Obj.modBus;
-    Obj.modBus.readHoldingRegisters(0, 10)
-    .then((data)=>{
-        
-        console.log(data.data);
-        UpdateConnected(Obj,true);
-        UpdateData(Obj,data.data);
-        setTimeout(()=>{ReadHolding(Obj)},2000);
-    }).catch(
-        
-       (reason) => {
-            
-            console.log('Handle rejected promise ('+reason+') here.');
-            console.log(reason);
-            setTimeout(()=>{ConnectedModbus(Obj)},3000) 
-            UpdateConnected(Obj,false);
-            
-    });;
-
-}
-
-function UpdateConnected(Obj,connected)
-{
-    
-    let id = Obj.ip + "Conection";
-    let container = document.getElementById(id);
-    let container2 = document.getElementById(Obj.ip);
-    
-    if(connected)
+    addModbusClient();
+    let container = document.getElementById("MainTable");
+    for(let obj of KnownLfCardList)
     {
-        container.innerHTML = "<p style='color: green;'>True</p>";
-
-
-
-
-        container2.classList.remove("table-warning");
-        container2.classList.add("table-success");
-      
-
-
-
-      
-      
-
-
-
-    }else{
-        container.innerHTML = "<p style='color: red;'>False</p>";
-
-        container2.classList.remove("table-success");
-        container2.classList.add("table-warning");
-    
+        AddToTableFunc.call(obj,container)
+        ConnectedModbus.call(obj)
+        pingList.push(obj.ip)
     }
-   
-    
-
-}
-
-function UpdateData(Obj,data)
-{
-    
-    let idFreq = Obj.ip + "Freq";
-    let containerFreq = document.getElementById(idFreq);
-    containerFreq.innerHTML = `<p style='color: green;'>${data[0]}</p>`;
-
-    let iddeviation= Obj.ip + "deviation";
-    let containerDev = document.getElementById(iddeviation);
-    containerDev.innerHTML = `<p style='color: green;'>${data[1]}</p>`;
-
-    let idbaud = Obj.ip + "baud";
-    let containerBaud = document.getElementById(idbaud);
-    containerBaud.innerHTML = `<p style='color: green;'>${data[2]}</p>`;
-        
 
 
-}
+    setInterval(()=>{PinallCards(pingList)},2000);
+
+});
 
 
 
-function setConProperties(Obj) {
-    
-    let id = parseInt(Obj.ip.substring(Obj.ip.length -3));
-    console.log("set con prop  ");
-    console.log(id);
-    Obj.modBus.setID(id);
-    Obj.modBus.setTimeout(2800);
-
-
-}
 
 
 
-var ping = require('ping');
+
+
+
+
 
 $('#setParametersModal').on('show.bs.modal', function (event) {
     var button = $(event.relatedTarget) // Button that triggered the modal
@@ -297,9 +303,8 @@ $('#setParametersModal').on('show.bs.modal', function (event) {
   })
 
 
-// setInterval(function() {
-//     client.writeRegister(0,2600 ,function(err, data) {
-//         console.log(err);
-//         console.log(data);
-//     }) 
-// }, 3000);
+
+
+
+
+
