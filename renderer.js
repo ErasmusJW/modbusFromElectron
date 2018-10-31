@@ -13,10 +13,41 @@ var ping = require('ping');
 
 
 
+function getRandomInt(min, max) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min)) + min; //The maximum is exclusive and the minimum is inclusive
+  }
 
 
+let RegisterMap = 
+{ 
+    "LfStandAlone" : {
+        "firmwareVersion" : 3.6,
+        "protocolVersion" : 1,
+        "InputResgisterMap" : [
+            "BatteryVolts",             
+            "BatteryTemp",              
+            "Unsed",                
+            "Unsed",                
+            "Analog1",              
+            "AnalogX",              
+            "AnalogY",              
+            "AnalogZ",
+            "Firmware",
+            "MAC1",               
+            "MAC2",
+            "MAC3"
+        ],
+        "HoldingResiterMap" : 
+        [
+            "Frequency",
+            "Deviation",
+            "Baud"
+        ]
 
-
+    } 
+}
 
 
 
@@ -24,26 +55,32 @@ let KnownLfCardList =
 [
     {
         "ip" :ipPrefix + "202",
+        "type" : "LfStandAlone",
         "name" :"WManage"
     },
     {
         "ip" :ipPrefix + "203",
+        "type" : "LfStandAlone",
         "name" :"Overlay CManage"
     },
     {
         "ip" :ipPrefix + "204",
+        "type" : "LfStandAlone",
         "name" :"HManage"
     },
     {
         "ip" :ipPrefix + "205",
+        "type" : "LfStandAlone",
         "name" :"Underlay WManage"
     },
     {
         "ip" :ipPrefix + "206",
+        "type" : "LfStandAlone",
         "name" :"Underlay CManage"
     },
     {
         "ip" :ipPrefix + "207",
+        "type" : "LfStandAlone",
         "name" :"Underlay HManage"
     }
 ]
@@ -73,7 +110,8 @@ function AddToTableFunc(tableBody)
         <td id="${ip}Freq"></td>
         <td id="${ip}deviation"></td>
         <td id="${ip}baud"></td>
-        <td><button type="button" class="btn btn-primary" data-toggle="modal" data-target="#setParametersModal" data-destip="${ip}">Set Lf parametes</button></td> 
+        <td><button type="button" class="btn btn-primary" data-toggle="modal" data-target="#setParametersModal" data-destip="${ip}">Set Lf parametes</button></td>
+        <td><button type="button" class="btn btn-primary" data-toggle="modal" data-target="#viewInputRegisterModal" data-destip="${ip}">View Input Register</button></td> 
     `
     tableBody.appendChild(p); 
 }
@@ -95,14 +133,14 @@ function ConnectedModbus()
             console.log("Connected");
             UpdateConnected.call(this,true);
  
-            //setTimeout(()=>{ReadHolding(Obj)},100) 
+            setTimeout(()=>{ReadHolding.call(this)},100) 
         })
         .catch((e)=> {
             console.log(e.message);
 
             console.log("connection Error Reconecting")
             UpdateConnected.call(this,false);
-            setTimeout(()=>{ConnectedModbus.call(this)},3000) 
+            setTimeout(()=>{ConnectedModbus.call(this)},1500 + getRandomInt(0,25)) 
         });
 
     },500);   
@@ -159,15 +197,44 @@ function ReadHolding()
         console.log(data.data);
         UpdateConnected.call(this,true);
         UpdateData.call(this,data.data);
-        setTimeout(()=>{ReadHolding(Obj)},2000);
+        setTimeout(()=>{ReadHolding.call(this)},1000 + getRandomInt(0,10)) 
     }).catch(
         
        (reason) => {
             
             console.log('Handle rejected promise ('+reason+') here.');
             console.log(reason);
-            setTimeout(()=>{ConnectedModbus.call(this)},3000) 
+            setTimeout(()=>{ConnectedModbus.call(this)},1500 + getRandomInt(0,25)) 
             UpdateConnected.call(this,false);
+            
+    });;
+
+}
+
+function ReadInputRegisters()
+{
+    console.log("read Input")
+
+    //let Obj.modBus = Obj.modBus;
+    
+    this.modBus.readInputRegisters(0, this.InputRegister.length)
+    .then((data)=>{
+        
+        console.log(data.data);
+        for(let val in data.data)
+        {
+            let id ="InputReg" +val;
+            document.getElementById(id).innerHTML = data.data[val]
+        }
+        
+
+    }).catch(
+        
+       (reason) => {
+            
+            console.log('Handle rejected promise ('+reason+') here.');
+            console.log(reason);
+
             
     });;
 
@@ -242,6 +309,9 @@ $( document ).ready(function()
     let container = document.getElementById("MainTable");
     for(let obj of KnownLfCardList)
     {
+        let firmwareIndex = RegisterMap[obj.type].InputResgisterMap.findIndex(function(name){return name == "Firmware"});
+
+        
         AddToTableFunc.call(obj,container)
         ConnectedModbus.call(obj)
         pingList.push(obj.ip)
@@ -302,9 +372,72 @@ $('#setParametersModal').on('show.bs.modal', function (event) {
      )
   })
 
+let MoveThisSomeHowIntoTheObject ;
+  $('#viewInputRegisterModal').on('show.bs.modal', function (event) {
+    var button = $(event.relatedTarget) // Button that triggered the modal
+    var recipient = button.data('destip') // Extract info from data-* attributes
+    // If necessary, you could initiate an AJAX request here (and then do the updating in a callback).
+    // Update the modal's content. We'll use jQuery here, but you could use a data binding library or other methods instead.
+    var modal = $(this)
+    modal.find('.modal-title').text('Viewing input register ' + recipient)
+
+    inputRegisterTarget
+
+
+
+    let tableBody = document.getElementById("InputRegisterTableBody");
+
+        
+    var found = KnownLfCardList.find(function(element) {
+        return element.ip == recipient;
+    });
+    if(!found)
+        alert("Some how sending data to a unkown card please restart");
+    else
+    {
+        let type = found.type;
+
+        
+        let registerNames = RegisterMap[type].InputResgisterMap;
+        found.InputRegister = registerNames;
+        
+        let container = document.getElementById("cardType");
+        container.innerHTML = `<p>Type : ${type } numRegister : ${registerNames.length}</p>`;
+        
+        for(let valName in registerNames)
+        {
+            let p = document.createElement("tr");
+            p.innerHTML = `
+            <td> ${valName} </td>
+            <td> ${registerNames[valName]} </td>
+            <td id="InputReg${valName}"> </td>
+            `
+            tableBody.append(p)
+        }
+
+         MoveThisSomeHowIntoTheObject = setInterval(function(){ReadInputRegisters.call(found)},1000);
+
+    }
+
+
+
+  })
 
 
 
 
+  $('#viewInputRegisterModal').on('hide.bs.modal', function (event) {
+
+    clearInterval(MoveThisSomeHowIntoTheObject)
+    console.log("HEEEEELLLLLLLLLLLLLLLLLLLLLLLLLLLLLLO");
+    console.log("HEEEEELLLLLLLLLLLLLLLLLLLLLLLLLLLLLLO");
+    console.log("HEEEEELLLLLLLLLLLLLLLLLLLLLLLLLLLLLLO");
+    console.log("HEEEEELLLLLLLLLLLLLLLLLLLLLLLLLLLLLLO");
+    console.log("HEEEEELLLLLLLLLLLLLLLLLLLLLLLLLLLLLLO");
+    console.log("HEEEEELLLLLLLLLLLLLLLLLLLLLLLLLLLLLLO");
+
+
+
+  })
 
 
