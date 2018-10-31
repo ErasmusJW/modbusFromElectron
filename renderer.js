@@ -418,7 +418,7 @@ $( document ).ready(function()
     });
     if(!found)
         alert("Some how sending data to a unkown card please restart");
-    
+        $("#setHoldingRegisterFormBody").empty();
     for(let val of RegisterMap[found.type].HoldingResiterMap)
     {
         $("#setHoldingRegisterFormBody").prepend(val.InputElement);
@@ -479,6 +479,7 @@ $('#viewHoldingRegister').on('show.bs.modal', function (event) {
     let type = found.type;
 
     let tableBody = document.getElementById("viewHoldingRegisterBody");
+    tableBody.innerHTML = "";
     let registerNames = RegisterMap[type].HoldingResiterMap;
     found.InputRegister = registerNames;
     
@@ -514,6 +515,7 @@ let MoveThisSomeHowIntoTheObject ;
 
 
     let tableBody = document.getElementById("InputRegisterTableBody");
+    tableBody.innerHTML ="";
 
         
     var found = KnownLfCardList.find(function(element) {
