@@ -84,7 +84,37 @@ let RegisterMap =
             }
         ]
 
-    } 
+    },
+    "LfHeadGear" : {
+        "firmwareVersion" : 3.6,
+        "protocolVersion" : 1,
+        "InputResgisterMap" : [
+            "BatteryVolts",             
+            "BatteryTemp",              
+            "SupplyVoltage",                
+            "Firmware",                
+            "MAC1",              
+            "MAC2",              
+            "MAC3",              
+            "RSSIvalAverage"
+        ],
+        "HoldingResiterMap" : 
+        [           
+            {
+                "name" :"Frequency",
+                "InputElement" : setFrequencyHtml,
+            },
+            {
+                "name" :"Deviation",
+                "InputElement" : setDeviationHtml
+            },
+            {
+                "name" :"Baud",
+                "InputElement" : baudHtml
+            }
+        ]
+
+    }  
 }
 
 
@@ -93,7 +123,7 @@ let KnownLfCardList =
 [
     {
         "ip" :ipPrefix + "202",
-        "type" : "LfStandAlone",
+        "type" : "LfHeadGear",
         "name" :"WManage"
     },
     {
@@ -103,12 +133,12 @@ let KnownLfCardList =
     },
     {
         "ip" :ipPrefix + "204",
-        "type" : "LfStandAlone",
+        "type" : "LfHeadGear",
         "name" :"HManage"
     },
     {
         "ip" :ipPrefix + "205",
-        "type" : "LfStandAlone",
+        "type" : "LfHeadGear",
         "name" :"Underlay WManage"
     },
     {
@@ -118,7 +148,7 @@ let KnownLfCardList =
     },
     {
         "ip" :ipPrefix + "207",
-        "type" : "LfStandAlone",
+        "type" : "LfHeadGear",
         "name" :"Underlay HManage"
     }
 ]
