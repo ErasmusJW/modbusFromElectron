@@ -47,11 +47,43 @@ function getRandomInt(min, max) {
     max = Math.floor(max);
     return Math.floor(Math.random() * (max - min)) + min; //The maximum is exclusive and the minimum is inclusive
   }
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
 
+
+let CardTypemap = 
+[
+    "NONE" ,
+    "SPEECH_UNIT" ,
+    "DIGITAL_UNIT" ,
+    "ANALOG_UNIT" ,
+    "MANAGEMENT_UNIT" ,
+    "LOADCELL_UNIT" ,
+    "MODBUS_UNIT" ,
+    "ANALOG" ,
+    "LF_STANDALONE" ,
+    "SIX_WAY_LOADCELL" ,
+    "INTEL_UNIT" ,
+    "BAMABANANI_LOADCELL_UNIT" ,
+    "DISPLAY_DRIVER" ,
+    "MANAGEMENT_LF" 
+]
 
 let RegisterMap = 
 { 
-    "LfStandAlone" : {
+    "LF_STANDALONE" : {
         "firmwareVersion" : 3.6,
         "protocolVersion" : 1,
         "InputResgisterMap" : [
