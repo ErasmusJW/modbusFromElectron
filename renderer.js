@@ -65,7 +65,7 @@ function getRandomInt(min, max) {
 
 let CardTypemap = 
 [
-    "NONE" ,
+    "UNKOWN" ,
     "SPEECH_UNIT" ,
     "DIGITAL_UNIT" ,
     "ANALOG_UNIT" ,
@@ -78,7 +78,8 @@ let CardTypemap =
     "INTEL_UNIT" ,
     "BAMABANANI_LOADCELL_UNIT" ,
     "DISPLAY_DRIVER" ,
-    "MANAGEMENT_LF" 
+    "LF_MANGEMENT_CAGE",
+    "LF_MANGEMENT_HEADGER"
 ]
 
 let RegisterMap = 
@@ -149,38 +150,46 @@ let RegisterMap =
     }  
 }
 
+const TypeRegisters = 250;
 
+const ErrorsBeforReconnect = 3;
 
 let KnownLfCardList = 
 [
     {
         "ip" :ipPrefix + "202",
-        "type" : "LfHeadGear",
+        "PossibleTypes" : "LfHeadGear",
+        "type" : "UNKOWN",
         "name" :"WManage"
     },
     {
         "ip" :ipPrefix + "203",
-        "type" : "LfStandAlone",
+        "PossibleTypes" : "LfStandAlone",
+        "type" : "UNKOWN",
         "name" :"Overlay CManage"
     },
     {
         "ip" :ipPrefix + "204",
-        "type" : "LfHeadGear",
+        "PossibleTypes" : "LfHeadGear",
+        "type" : "UNKOWN",
         "name" :"HManage"
     },
     {
         "ip" :ipPrefix + "205",
-        "type" : "LfHeadGear",
+        "PossibleTypes" : "LfHeadGear",
+        "type" : "UNKOWN",
         "name" :"Underlay WManage"
     },
     {
         "ip" :ipPrefix + "206",
-        "type" : "LfStandAlone",
+        "PossibleTypes" : "LfStandAlone",
+        "type" : "UNKOWN",
         "name" :"Underlay CManage"
     },
     {
         "ip" :ipPrefix + "207",
-        "type" : "LfHeadGear",
+        "PossibleTypes" : "LfHeadGear",
+        "type" : "UNKOWN",
         "name" :"Underlay HManage"
     }
 ]
@@ -251,32 +260,118 @@ function GetFirmware()
     });;
 }
 
+
+function GetType()
+{
+    console.log("GetFirmWare")
+    return new Promise((resolve,reject)=>{
+        //bragaining that if it's not on a version version with a type it's reading random memory and 10 seqential memmory adrress are either all zero or different
+        this.modBus.readInputRegisters(TypeRegisters, 10)
+        .then((data)=>{
+            this.ReadDataErrorCount = 0;
+            console.log(data.data);
+            let hasType = true;
+            for (let index = 0; index < data.data.length -1 ; index++) 
+            {
+                if(data.data[0] != data.data[1])
+                {
+                    hasType = false;
+                    break;
+                }
+                
+            }
+            
+            if(hasType)
+                resolve(data.data[0])
+            else
+                reslove(0);
+        }).catch(
+            
+        (reason) => {
+                
+                if(typeof(this.ReadDataErrorCount) != 'undefined' && typeof(this.ReadDataErrorCount) != null)
+                {
+                    this.ReadDataErrorCount = this.ReadDataErrorCount + 1;  
+                } else{
+                    this.ReadDataErrorCount = 1;
+
+                }
+                console.log("Type read failed kak hard");
+                reject(reason);
+
+                
+        });;
+
+
+    })
+
+}
+
+
+function OnModbussConected(messae)
+{
+
+    GetType.call(this).then((type)=>
+    {
+        if(type >= CardTypemap.length)
+        {
+            console.log("Unkown type read");
+            console.log("Unkown type read");
+            console.log("Unkown type read");
+            console.log(type);
+            type= 0;
+        }
+        console.log("Got type " + CardTypemap[type])
+        
+
+    }).catch((reason)=>
+    {
+        debugger;
+        if(this.ReadDataErrorCount >= 3)
+        {
+            OnModbussDisconnected(); 
+        }
+        else
+        {
+            OnModbussConected();
+        }
+    })
+}
+
+function OnModbussDisconnected()
+{
+
+
+    console.log("connection Error Reconecting")
+    UpdateConnected.call(this,false);
+    setTimeout(()=>{ConnectedModbus.call(this)},1500 + getRandomInt(0,100)) 
+}
+
 function ConnectedModbus()
 {
-    console.log("COnnecting " + this.ip);
-    
-    //let Obj.modBus = Obj.modBus;
-    let ip = this.ip;
-    this.modBus.close();
 
-    setTimeout(()=>{
-        this.modBus.connectTCP(this.ip, { port: 502 })
-        .then(()=>{
-            setConProperties.call(this)
-            console.log("Connected");
-            UpdateConnected.call(this,true);
- 
-            setTimeout(()=>{GetFirmware.call(this)},100) 
-        })
-        .catch((e)=> {
-            console.log(e.message);
+        console.log("COnnecting " + this.ip);
+        
+        //let Obj.modBus = Obj.modBus;
+        let ip = this.ip;
+        this.modBus.close();
 
-            console.log("connection Error Reconecting")
-            UpdateConnected.call(this,false);
-            setTimeout(()=>{ConnectedModbus.call(this)},1500 + getRandomInt(0,25)) 
-        });
+        setTimeout(()=>{
+            this.modBus.connectTCP(this.ip, { port: 502 })
+            .then(()=>{
+                setConProperties.call(this)
+                console.log("Connected");
+                UpdateConnected.call(this,true);
+                OnModbussConected.call(this);
+            })
+            .catch((e)=> {
 
-    },500);   
+                OnModbussDisconnected.call(this,e.message)
+            });
+
+        },100); 
+
+   
 }
 
 function setConProperties() {
@@ -442,11 +537,11 @@ $( document ).ready(function()
     let container = document.getElementById("MainTable");
     for(let obj of KnownLfCardList)
     {
-        let firmwareIndex = RegisterMap[obj.type].InputResgisterMap.findIndex(function(name){return name == "Firmware"});
-        obj.firmwareIndex = firmwareIndex;
+        // let firmwareIndex = RegisterMap[obj.type].InputResgisterMap.findIndex(function(name){return name == "Firmware"});
+        // obj.firmwareIndex = firmwareIndex;
         
         AddToTableFunc.call(obj,container)
-        ConnectedModbus.call(obj)
+        ConnectedModbus.call(obj);
         pingList.push(obj.ip)
     }
 
@@ -496,7 +591,7 @@ $( document ).ready(function()
             let RegisterValues = [];
             for(let val of RegisterMap[found.type].HoldingResiterMap)
             {
-                debugger
+                
                 let value = $("#Set" + val.name).val()
                 RegisterValues.push(value)
                 
@@ -546,7 +641,7 @@ $('#viewHoldingRegister').on('show.bs.modal', function (event) {
     found.InputRegister = registerNames;
     
 
-    debugger
+    
     for(let valName in registerNames)
     {
         let p = document.createElement("tr");
