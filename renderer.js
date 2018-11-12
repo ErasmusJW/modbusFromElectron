@@ -154,44 +154,56 @@ const TypeRegisters = 250;
 
 const ErrorsBeforReconnect = 3;
 
+// let KnownLfCardList = 
+// [
+//     {
+//         "ip" :ipPrefix + "202",
+//         "PossibleTypes" : "LfHeadGear",
+//         "type" : "UNKOWN",
+//         "name" :"WManage"
+//     },
+//     {
+//         "ip" :ipPrefix + "203",
+//         "PossibleTypes" : "LfStandAlone",
+//         "type" : "UNKOWN",
+//         "name" :"Overlay CManage"
+//     },
+//     {
+//         "ip" :ipPrefix + "204",
+//         "PossibleTypes" : "LfHeadGear",
+//         "type" : "UNKOWN",
+//         "name" :"HManage"
+//     },
+//     {
+//         "ip" :ipPrefix + "205",
+//         "PossibleTypes" : "LfHeadGear",
+//         "type" : "UNKOWN",
+//         "name" :"Underlay WManage"
+//     },
+//     {
+//         "ip" :ipPrefix + "206",
+//         "PossibleTypes" : "LfStandAlone",
+//         "type" : "UNKOWN",
+//         "name" :"Underlay CManage"
+//     },
+//     {
+//         "ip" :ipPrefix + "207",
+//         "PossibleTypes" : "LfHeadGear",
+//         "type" : "UNKOWN",
+//         "name" :"Underlay HManage"
+//     }
+// ]
+
 let KnownLfCardList = 
 [
-    {
-        "ip" :ipPrefix + "202",
-        "PossibleTypes" : "LfHeadGear",
-        "type" : "UNKOWN",
-        "name" :"WManage"
-    },
+
     {
         "ip" :ipPrefix + "203",
         "PossibleTypes" : "LfStandAlone",
         "type" : "UNKOWN",
         "name" :"Overlay CManage"
-    },
-    {
-        "ip" :ipPrefix + "204",
-        "PossibleTypes" : "LfHeadGear",
-        "type" : "UNKOWN",
-        "name" :"HManage"
-    },
-    {
-        "ip" :ipPrefix + "205",
-        "PossibleTypes" : "LfHeadGear",
-        "type" : "UNKOWN",
-        "name" :"Underlay WManage"
-    },
-    {
-        "ip" :ipPrefix + "206",
-        "PossibleTypes" : "LfStandAlone",
-        "type" : "UNKOWN",
-        "name" :"Underlay CManage"
-    },
-    {
-        "ip" :ipPrefix + "207",
-        "PossibleTypes" : "LfHeadGear",
-        "type" : "UNKOWN",
-        "name" :"Underlay HManage"
     }
+    
 ]
 
 //pff who needs classes when your lazy
@@ -233,10 +245,19 @@ function GetFirmware()
 {
     console.log("GetFirmWare")
 
+    // let type = this.type;
+    // let registerMapForThisType = RegisterMap[this.type];
+    // debugger;
+
+
+    let firmwareIndex = RegisterMap[this.type].InputResgisterMap.findIndex(function(name){return name == "Firmware"});
+    this.firmwareIndex = firmwareIndex;
+        
+
     //let Obj.modBus = Obj.modBus;
     this.modBus.readInputRegisters(this.firmwareIndex, 1)
     .then((data)=>{
-        
+        this.ReadDataErrorCount = 0;
         console.log(data.data);
         UpdateConnected.call(this,true);
         
@@ -251,11 +272,26 @@ function GetFirmware()
     }).catch(
         
        (reason) => {
+
             
-            console.log('Handle rejected promise ('+reason+') here.');
-            console.log(reason);
-            setTimeout(()=>{ConnectedModbus.call(this)},1500 + getRandomInt(0,25)) 
-            UpdateConnected.call(this,false);
+            if(typeof(this.ReadDataErrorCount) != 'undefined' && typeof(this.ReadDataErrorCount) != null)
+            {
+                this.ReadDataErrorCount = this.ReadDataErrorCount + 1;  
+            } else{
+                this.ReadDataErrorCount = 1;
+
+            }
+            console.log("Get firmware Error Count" + this.ReadDataErrorCount )
+            if(this.ReadDataErrorCount >= 3)
+            {
+                console.log('Handle rejected promise ('+reason+') here.');
+                console.log(reason);
+                setTimeout(()=>{ConnectedModbus.call(this)},1500 + getRandomInt(0,25)) 
+                UpdateConnected.call(this,false);
+            }
+            else
+            GetFirmware.call(this);
+                
             
     });;
 }
@@ -263,7 +299,7 @@ function GetFirmware()
 
 function GetType()
 {
-    console.log("GetFirmWare")
+    console.log("GetType")
     return new Promise((resolve,reject)=>{
         //bragaining that if it's not on a version version with a type it's reading random memory and 10 seqential memmory adrress are either all zero or different
         this.modBus.readInputRegisters(TypeRegisters, 10)
@@ -308,9 +344,12 @@ function GetType()
 }
 
 
+
+
 function OnModbussConected(messae)
 {
 
+    console.log("Onmodbus connected");
     GetType.call(this).then((type)=>
     {
         if(type >= CardTypemap.length)
@@ -322,14 +361,17 @@ function OnModbussConected(messae)
             type= 0;
         }
         console.log("Got type " + CardTypemap[type])
-        
+        this.type = CardTypemap[type];
+        GetFirmware.call(this);
 
     }).catch((reason)=>
     {
         debugger;
+        console.log("card read type error");
         if(this.ReadDataErrorCount >= 3)
         {
             OnModbussDisconnected(); 
+            
         }
         else
         {
@@ -354,7 +396,9 @@ function ConnectedModbus()
         
         //let Obj.modBus = Obj.modBus;
         let ip = this.ip;
-        this.modBus.close();
+        console.log(this.modBus.connected)
+        if( this.modBus.connected)
+            this.modBus.close();
 
         setTimeout(()=>{
             this.modBus.connectTCP(this.ip, { port: 502 })
@@ -380,7 +424,7 @@ function setConProperties() {
     console.log("set con prop  ");
     console.log(id);
     this.modBus.setID(id);
-    this.modBus.setTimeout(2800);
+    this.modBus.setTimeout(2500);
 
 
 }
