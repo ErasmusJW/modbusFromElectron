@@ -5,6 +5,43 @@
 
 //export { kont }; 
 
+
+
+function SetColourAndValueBunting(element,value)
+{
+  
+  var classToRemove = ["dotActive", "dotNotActive"]
+  element.classList.remove(...classToRemove);
+  if(value)
+  {
+    element.classList.add("dotNotActive");
+
+    
+  }
+
+  if(value == 0)
+  {
+    element.classList.add("dotActive");
+    
+
+  }
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 const ipPrefix = "192.168.0.";
 var ModbusRTU = require("modbus-serial");
 
@@ -87,6 +124,7 @@ let RegisterMap =
     "LF_STANDALONE" : {
         "firmwareVersion" : 3.6,
         "protocolVersion" : 1,
+        "CoilMap" : [],
         "InputResgisterMap" : [
             "BatteryVolts",             
             "BatteryTemp",              
@@ -100,6 +138,24 @@ let RegisterMap =
             "MAC1",               
             "MAC2",
             "MAC3"
+        ],
+        "DiscreteInputMap" : [
+            "Input0",
+            "Input1",
+            "Input2",
+            "Input3",
+            "Input4",
+            "Input5",
+            "Input6",
+            "Input7",
+            "BatteryFlag0-SupplyAvailable",
+            "BatteryFlag1-LoadTestPerformed",
+            "BatteryFlag2-BattHealthy",
+            "BatteryFlag3-Low Voltage cut",
+            "BatteryFlag4",
+            "BatteryFlag5",
+            "BatteryFlag6",
+            "BatteryFlag7-Low Voltage Warning",            
         ],
         "HoldingResiterMap" : 
         [           
@@ -118,6 +174,62 @@ let RegisterMap =
         ]
 
     },
+    "LF_MANGEMENT_CAGE" : 
+    {
+        "firmwareVersion" : 2.6,
+        "protocolVersion" : 1,
+        "CoilMap" : [
+            "Output0",
+            "Output1"
+        ],
+        "InputResgisterMap" : [
+            "BatteryVolts",             
+            "BatteryTemp",              
+            "UnintialisedByte",                
+            "Firmware",                
+            "MAC1",              
+            "MAC2",              
+            "Unsed",              
+            "Unsed"
+
+        ],
+        "DiscreteInputMap" : [
+            "Input0",
+            "Input1",
+            "Input2",
+            "Input3",
+            "Input4",
+            "Input5",
+            "Input6",
+            "Input7",
+            "BatteryFlag0-SupplyAvailable",
+            "BatteryFlag1-LoadTestPerformed",
+            "BatteryFlag2-BattHealthy",
+            "BatteryFlag3-Low Voltage cut",
+            "BatteryFlag4",
+            "BatteryFlag5",
+            "BatteryFlag6",
+            "BatteryFlag7-Low Voltage Warning",            
+        ],
+        "HoldingResiterMap" : 
+        [           
+            {
+                "name" :"Frequency",
+                "InputElement" : setFrequencyHtml,
+            },
+            {
+                "name" :"Deviation",
+                "InputElement" : setDeviationHtml
+            },
+            {
+                "name" :"Baud",
+                "InputElement" : baudHtml
+            }
+        ]
+
+    },
+
+    
     "LfHeadGear" : {
         "firmwareVersion" : 3.6,
         "protocolVersion" : 1,
@@ -199,9 +311,9 @@ let KnownLfCardList =
 
     {
         "ip" :ipPrefix + "203",
-        "PossibleTypes" : "LfStandAlone",
         "type" : "UNKOWN",
-        "name" :"Overlay CManage"
+        "name" :"Overlay CManage",
+        "PossibleTypes" : ["LF_MANGEMENT_CAGE","MANAGEMENT_UNIT","LF_STANDALONE"]
     }
     
 ]
@@ -228,15 +340,83 @@ function AddToTableFunc(tableBody)
         <td>${name} </td>
         <td id="${ip}Conection">Connecting</td>
         <td id="${ip}Ping">Connecting</td>
+        <td id="${ip}Type">N/A</td>
         <td id="${ip}Firmware">N/A</td>
-
         <td>
-            <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#setHoldingRegister" data-destip="${ip}">Set</button>
-            <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#viewHoldingRegister" data-destip="${ip}">View</button>
+            <button id="${ip}SetHolding" type="button" disabled class="btn btn-primary" data-toggle="modal" data-target="#setHoldingRegister" data-destip="${ip}">Set</button>
+            <button id="${ip}GetHolding" type="button" disabled class="btn btn-primary" data-toggle="modal" data-target="#viewHoldingRegister" data-destip="${ip}">View</button>
         </td>
-        <td><button type="button" class="btn btn-primary" data-toggle="modal" data-target="#viewInputRegisterModal" data-destip="${ip}">View</button></td> 
+        <td>
+            <button id="${ip}ViewInputRegister" type="button" disabled class="btn btn-primary" data-toggle="modal" data-target="#viewInputRegisterModal" data-destip="${ip}" data-maptodisplay="InputResgisterMap">
+                view
+            </button>
+        </td>
+        <td>
+            <button id="${ip}ViewDiscreteInput" type="button" disabled class="btn btn-primary" data-toggle="modal" data-target="#viewInputRegisterModal" data-destip="${ip}" data-maptodisplay="DiscreteInputMap">
+                View
+            </button>
+        </td> 
+        <td>
+            <button id="${ip}ViewColis" type="button" disabled class="btn btn-primary" data-toggle="modal" data-target="#viewCoilsModal" data-destip="${ip}" data-maptodisplay="CoilMap">
+                View/Set
+            </button>
+
+        </td> 
     `
     tableBody.appendChild(p); 
+}
+
+
+function DisableButtonTypes()
+{
+    $(`button[id='${this.ip}SetHolding']`).prop("disabled",true)
+    $(`button[id='${this.ip}GetHolding']`).prop("disabled",true)
+    $(`button[id='${this.ip}ViewInputRegister']`).prop("disabled",true)
+    $(`button[id='${this.ip}ViewDiscreteInput']`).prop("disabled",true)
+    $(`button[id='${this.ip}ViewColis']`).prop("disabled",true)
+
+}
+
+
+//also poop
+function EnableButtonTypes()
+{
+    let regmap = RegisterMap[this.type];
+
+
+
+
+
+    let coilMapped = false;
+    let InputRegisterMaped = false;
+    let DiscreteInputMappeds = false;
+    let HoldingMaped = false;
+
+    
+    if(regmap && regmap.CoilMap && regmap.CoilMap.length > 0)
+    {
+        coilMapped = true; 
+    } 
+    if(regmap && regmap.InputResgisterMap && regmap.InputResgisterMap.length > 0)
+    {
+        InputRegisterMaped =true;
+    } 
+    if(regmap && regmap.DiscreteInputMap && regmap.DiscreteInputMap.length > 0)
+    {
+        DiscreteInputMappeds = true;
+    } 
+    if(regmap && regmap.HoldingResiterMap && regmap.HoldingResiterMap.length > 0)
+    {
+        HoldingMaped= true;
+    } 
+
+    $(`button[id='${this.ip}SetHolding']`).prop("disabled",!HoldingMaped)
+    $(`button[id='${this.ip}GetHolding']`).prop("disabled",!HoldingMaped)
+    $(`button[id='${this.ip}ViewInputRegister']`).prop("disabled",!InputRegisterMaped)
+    $(`button[id='${this.ip}ViewDiscreteInput']`).prop("disabled",!DiscreteInputMappeds)
+    $(`button[id='${this.ip}ViewColis']`).prop("disabled",!coilMapped)
+
+
 }
 
 
@@ -268,7 +448,15 @@ function GetFirmware()
         let firmwareTotal = firmWareVersionMajor + firmWareVersionMinor;
 
         firmwareContainer.innerHTML = `<p style='color: green;'>${firmwareTotal}</p>`;   
-        setTimeout(()=>{GetFirmware.call(this)},1000 + getRandomInt(0,50)) 
+        setTimeout(()=>{
+            //shitty way but only want one but will settle for 2 get firmware running at a time
+            if(this.ReadFirmwareCount && this.ReadFirmwareCount > 2)
+            {
+                debugger
+                this.ReadFirmwareCount = this.ReadFirmwareCount -1;
+            } else
+                GetFirmware.call(this)
+        },1000 + getRandomInt(0,50)) 
     }).catch(
         
        (reason) => {
@@ -286,11 +474,16 @@ function GetFirmware()
             {
                 console.log('Handle rejected promise ('+reason+') here.');
                 console.log(reason);
+                this.ReadFirmwareCount = this.ReadFirmwareCount -1;
                 setTimeout(()=>{ConnectedModbus.call(this)},1500 + getRandomInt(0,25)) 
                 UpdateConnected.call(this,false);
             }
             else
-            GetFirmware.call(this);
+            {
+
+                    GetFirmware.call(this)
+            }
+
                 
             
     });;
@@ -344,6 +537,67 @@ function GetType()
 }
 
 
+function handleUnkownType()
+{
+    DisableButtonTypes.call(this)
+    let idTypeId= this.ip + "Type";
+    let typeContainer = document.getElementById(idTypeId);
+
+
+    let selectOptions = "<option selected disabled>Unkown</option>";
+    for(let val of  this.PossibleTypes)
+    {
+        selectOptions += `<option>${val}</option>`
+    }
+    //
+    typeContainer.innerHTML = `<p style='color: red ;' id='${this.ip}dowewaveatype'>Card not reporting Type</p>
+    <label for="${this.ip}TypeSelect">Select Type</label>
+    <select class="form-control" id="${this.ip}TypeSelect">
+        ${selectOptions}
+    </select>
+                                `;  
+
+    
+    //time out as it's not yet in the dom
+    setTimeout(()=>{  
+        document.getElementById(`${this.ip}TypeSelect`).focus(); 
+ 
+        // jquery selector might look weird, used cause there is a "." in id "
+        $(`select[id='${this.ip}TypeSelect']`).on('change', (e)=>{
+        
+            let ip = this.ip;
+
+
+             $(`p[id='${this.ip}dowewaveatype']`).css('color', 'Green');
+             $(`p[id='${this.ip}dowewaveatype']`).text("Type Selected");
+  
+
+
+            //have to find again cause we are not rebinding this
+            let typeSelected =  $(`select[id='${this.ip}TypeSelect']`).find("option:selected").val();
+            console.log("typeSelected : " + typeSelected)
+
+            
+            this.type = typeSelected;
+            EnableButtonTypes.call(this);
+
+            //very shitty way to do this- but the intention is to stop all the other get firmware calls if type changes
+            if(typeof(this.ReadFirmwareCount) != 'undefined' && typeof(this.ReadFirmwareCount) != null)
+            {
+                this.ReadFirmwareCount = this.ReadFirmwareCount + 1;
+            }
+            else
+            {
+                this.ReadFirmwareCount = 1;
+            }
+
+            GetFirmware.call(this);
+
+        });},1)
+
+
+}
+
 
 
 function OnModbussConected(messae)
@@ -352,17 +606,35 @@ function OnModbussConected(messae)
     console.log("Onmodbus connected");
     GetType.call(this).then((type)=>
     {
-        if(type >= CardTypemap.length)
+        if(type >= CardTypemap.length )
         {
             console.log("Unkown type read");
             console.log("Unkown type read");
             console.log("Unkown type read");
             console.log(type);
+            
             type= 0;
+            handleUnkownType.call(this);
+        } else{
+            let idTypeId= this.ip + "Type";
+            let typeContainer = document.getElementById(idTypeId);
+            console.log("Got type " + CardTypemap[type])
+            this.type = CardTypemap[type];
+            //if we previously had a unkown type we might have an event listener on a dom object that doesn't exist anymore
+            typeContainer.innerHTML = this.type;
+            EnableButtonTypes.call(this);
+
+            if(typeof(this.ReadFirmwareCount) != 'undefined' && typeof(this.ReadFirmwareCount) != null)
+            {
+                this.ReadFirmwareCount = this.ReadFirmwareCount + 1;
+            }
+            else
+            {
+                this.ReadFirmwareCount = 1;
+            }
+
+            GetFirmware.call(this);
         }
-        console.log("Got type " + CardTypemap[type])
-        this.type = CardTypemap[type];
-        GetFirmware.call(this);
 
     }).catch((reason)=>
     {
@@ -370,12 +642,12 @@ function OnModbussConected(messae)
         console.log("card read type error");
         if(this.ReadDataErrorCount >= 3)
         {
-            OnModbussDisconnected(); 
+            OnModbussDisconnected.call(this); 
             
         }
         else
         {
-            OnModbussConected();
+            OnModbussConected.call(this);
         }
     })
 }
@@ -383,9 +655,12 @@ function OnModbussConected(messae)
 function OnModbussDisconnected()
 {
 
-
+    this.modBus.close();
+    //the joy of having a garbage collector, had some issues if port was disconnected for to long it wont reconnect, doing this seems to help- little bit heavy handed probably an error in the firmware
+    this.modBus = new ModbusRTU();
     console.log("connection Error Reconecting")
     UpdateConnected.call(this,false);
+
     setTimeout(()=>{ConnectedModbus.call(this)},1500 + getRandomInt(0,100)) 
 }
 
@@ -446,6 +721,7 @@ function UpdateConnected(connected)
 
 
     }else{
+        DisableButtonTypes.call(this);
         container.innerHTML = "<p style='color: red;'>False</p>";
 
         container2.classList.remove("table-success");
@@ -465,7 +741,8 @@ function ReadHolding()
     //let Obj.modBus = Obj.modBus;
     this.modBus.readHoldingRegisters(0, this.InputRegister.length)
     .then((data)=>{
-        
+        $('.ConnectionLostNotifier').css('display','none');
+        this.ReadHoldingError = 0;
         console.log(data.data);
         for(let val in data.data)
         {
@@ -475,6 +752,19 @@ function ReadHolding()
     }).catch(
         
        (reason) => {
+
+                    
+        if(typeof(this.ReadHoldingError) != 'undefined' && typeof(this.ReadHoldingError) != null)
+        {
+            this.ReadHoldingError = this.ReadHoldingError + 1;  
+        } else{
+            this.ReadHoldingError = 1;
+
+        }
+        if(this.ReadHoldingError > 3)
+        {
+            $('.ConnectionLostNotifier').css('display','block');
+        }
             
         console.log('Handle rejected promise ('+reason+') here.');
         console.log(reason);
@@ -498,12 +788,114 @@ function ReadInputRegisters()
             let id ="InputReg" +val;
             document.getElementById(id).innerHTML = data.data[val]
         }
-        
+        this.ReadInputError = 0;
+        $('.ConnectionLostNotifier').css('display','none');
 
     }).catch(
         
        (reason) => {
             
+                    
+        if(typeof(this.ReadInputError) != 'undefined' && typeof(this.ReadInputError) != null)
+        {
+            this.ReadInputError = this.ReadInputError + 1;  
+        } else{
+            this.ReadInputError = 1;
+
+        }
+        if(this.ReadInputError > 3)
+        {
+            $('.ConnectionLostNotifier').css('display','block');
+        }
+
+            
+    });;
+
+}
+
+function ReadDiscreteInput()
+{
+    console.log("read Discrete Input")
+
+    //let Obj.modBus = Obj.modBus;
+    //readDiscreteInputs(dataAddress: number, length: number): Promise<ReadCoilResult>;
+    this.modBus.readDiscreteInputs(0, this.InputRegister.length)
+    .then((data)=>{
+        
+        console.log(data.data);
+        for(let val in data.data)
+        {
+            let id ="InputReg" +val;
+            document.getElementById(id).innerHTML = data.data[val]
+        }
+        this.ReadDisInputError =0;
+        $('.ConnectionLostNotifier').css('display','none');
+
+    }).catch(
+        
+       (reason) => 
+       {
+                                
+            if(typeof(this.ReadDisInputError) != 'undefined' && typeof(this.ReadDisInputError) != null)
+            {
+                this.ReadDisInputError = this.ReadDisInputError + 1;  
+            } else{
+                this.ReadDisInputError = 1;
+
+            }
+            if(this.ReadDisInputError > 3)
+            {
+                $('.ConnectionLostNotifier').css('display','block');
+            }
+                console.log('Handle rejected promise ('+reason+') here.');
+                console.log(reason);
+
+            
+    });;
+
+}
+
+
+
+
+function ReadCoils()
+{
+    console.log("read coil Input")
+
+    //let Obj.modBus = Obj.modBus;
+    //readDiscreteInputs(dataAddress: number, length: number): Promise<ReadCoilResult>;
+    this.modBus.readCoils(0, this.InputRegister.length)
+    .then((data)=>{
+        
+        console.log(data.data);
+        for(let val in data.data)
+        {
+            let id ="#Coil" +val;
+            if(data.data[val])
+                $( id ).removeClass( "dotNotActive" ).addClass( "dotActive" )
+            else
+                $( id ).removeClass( "dotActive" ).addClass( "dotNotActive" )
+
+        }
+        $('.ConnectionLostNotifier').css('display','none');
+
+    }).catch(
+        
+       (reason) => {
+            
+        if(typeof(this.ReadCoilError) != 'undefined' && typeof(this.ReadCoilError) != null)
+        {
+            this.ReadCoilError = this.ReadCoilError + 1;  
+        } else{
+            this.ReadCoilError = 1;
+
+        }
+        if(this.ReadCoilError > 3)
+        {
+            $('.ConnectionLostNotifier').css('display','block');
+        }
+
+
             console.log('Handle rejected promise ('+reason+') here.');
             console.log(reason);
 
@@ -511,6 +903,7 @@ function ReadInputRegisters()
     });;
 
 }
+
 
 
 function UpdateData(data)
@@ -558,13 +951,9 @@ function SetPing(val,ip)
     if(val)
     {
         container.innerHTML = "<p style='color: green;'>True</p>";
-
-
-    }else{
+    }else
+    {
         container.innerHTML = "<p style='color: red;'>False</p>";
-
-
-    
     }
 }
 
@@ -596,17 +985,7 @@ $( document ).ready(function()
 
 
 
-
-
-
-
-
-
-
-
-
-
-  $('#setHoldingRegister').on('show.bs.modal', function (event) {
+  $('#setHoldingRegister').on('show.bs.modal', function (event){
     var button = $(event.relatedTarget) // Button that triggered the modal
     var recipient = button.data('destip') // Extract info from data-* attributes
     // If necessary, you could initiate an AJAX request here (and then do the updating in a callback).
@@ -624,12 +1003,13 @@ $( document ).ready(function()
     {
         $("#setHoldingRegisterFormBody").prepend(val.InputElement);
     }
-
+    $("#sendData").off();
     $("#sendData").click(
         function(event) 
         {
             event.preventDefault();
-            var found = KnownLfCardList.find(function(element) {
+            var found = KnownLfCardList.find(function(element) 
+            {
                 return element.ip == recipient;
             });
             let RegisterValues = [];
@@ -637,15 +1017,14 @@ $( document ).ready(function()
             {
                 
                 let value = $("#Set" + val.name).val()
-                RegisterValues.push(value)
-                
+                RegisterValues.push(value)  
             }
-           
 
             if(!found)
                 alert("Some how sending data to a unkown card please restart");
             else
             {
+                
                 console.log("Sending Values")
                 found.modBus.writeRegisters(0,RegisterValues, function(err, data) {
                             console.log(err);
@@ -663,7 +1042,7 @@ $( document ).ready(function()
 
 
 let MoveThisSomeHowIntoTheObject2;
-$('#viewHoldingRegister').on('show.bs.modal', function (event) {
+$('#viewHoldingRegister').on('show.bs.modal', function (event){
     var button = $(event.relatedTarget) // Button that triggered the modal
     var recipient = button.data('destip') // Extract info from data-* attributes
     // If necessary, you could initiate an AJAX request here (and then do the updating in a callback).
@@ -680,7 +1059,9 @@ $('#viewHoldingRegister').on('show.bs.modal', function (event) {
     let type = found.type;
 
     let tableBody = document.getElementById("viewHoldingRegisterBody");
-    tableBody.innerHTML = "";
+
+    //also poop
+    tableBody.innerHTML = "<h1 class='ConnectionLostNotifier' style='color:red; display:none '>Connection Lost</h1>";
     let registerNames = RegisterMap[type].HoldingResiterMap;
     found.InputRegister = registerNames;
     
@@ -711,13 +1092,15 @@ let MoveThisSomeHowIntoTheObject ;
     var modal = $(this)
     modal.find('.modal-title').text('Viewing input register ' + recipient)
 
-    inputRegisterTarget
+    let inputRegisterTarget = button.data('maptodisplay');
 
-
+    console.log(inputRegisterTarget);
+    console.log(inputRegisterTarget);
+    console.log(inputRegisterTarget);
+    console.log(inputRegisterTarget);
 
     let tableBody = document.getElementById("InputRegisterTableBody");
-    tableBody.innerHTML ="";
-
+    tableBody.innerHTML = "<h1 class='ConnectionLostNotifier' style='color:red; display:none'>Connection Lost</h1>";
         
     var found = KnownLfCardList.find(function(element) {
         return element.ip == recipient;
@@ -729,7 +1112,7 @@ let MoveThisSomeHowIntoTheObject ;
         let type = found.type;
 
         
-        let registerNames = RegisterMap[type].InputResgisterMap;
+        let registerNames = RegisterMap[type][inputRegisterTarget];
         found.InputRegister = registerNames;
         
         let container = document.getElementById("cardType");
@@ -746,7 +1129,16 @@ let MoveThisSomeHowIntoTheObject ;
             tableBody.append(p)
         }
 
-         MoveThisSomeHowIntoTheObject = setInterval(function(){ReadInputRegisters.call(found)},1000);
+
+        //poop refactor
+        if(inputRegisterTarget == "InputResgisterMap")
+            MoveThisSomeHowIntoTheObject = setInterval(function(){ReadInputRegisters.call(found)},1000);
+        if(inputRegisterTarget == "DiscreteInputMap")
+            MoveThisSomeHowIntoTheObject = setInterval(function(){ReadDiscreteInput.call(found)},1000);
+        if(inputRegisterTarget == "CoilMap")
+            MoveThisSomeHowIntoTheObject = setInterval(function(){ReadDiscreteInput.call(found)},1000);    
+
+        
 
     }
 
@@ -755,7 +1147,99 @@ let MoveThisSomeHowIntoTheObject ;
   })
 
 
+  let MoveThisSomeHowIntoTheObject3;
+  $('#viewCoilsModal').on('show.bs.modal', function (event){
+      var button = $(event.relatedTarget) // Button that triggered the modal
+      var recipient = button.data('destip') // Extract info from data-* attributes
 
+      var modal = $(this)
+      modal.find('.modal-title').text('Viewing Coils ' + recipient)
+      //modal.find('.modal-body input').val(recipient)
+      var found = KnownLfCardList.find(function(element) {
+          return element.ip == recipient;
+      });
+      if(!found)
+          alert("Some how viewing data to a unkown card please restart");
+      
+      let type = found.type;
+  
+      let tableBody = document.getElementById("CoilTableBody");
+      tableBody.innerHTML = "<h1 class='ConnectionLostNotifier' style='color:red; display:none'>Connection Lost</h1>";
+      let registerNames = RegisterMap[type].CoilMap;
+      found.InputRegister = registerNames;
+      
+  
+      
+      for(let valName in registerNames)
+      {
+          let p = document.createElement("tr");
+          p.innerHTML = `
+          <td> ${valName} </td>
+          <td> ${registerNames[valName]} </td>
+          <td> <span class="dotNotActive" id="Coil${valName}"></span> </td>
+          <td> <button onclick="SetCoil('${recipient}',${valName},true)">On</button> <button onclick="SetCoil('${recipient}',${valName},false)">Off</button> <button onclick="ToggleCoil('${recipient}',${valName})">Toggle</button> </td>
+          `
+          tableBody.append(p)
+      }
+  
+        MoveThisSomeHowIntoTheObject3 = setInterval(function(){ReadCoils.call(found)},1000);
+  
+  
+    })
+
+  function SetCoil(ip,coliNum,val)
+  {
+    var found = KnownLfCardList.find(function(element) {
+        return element.ip == ip;
+    });
+    if(!found)
+        alert("Some how viewing data to a unkown card please restart");
+    else
+    {
+        
+        found.modBus.writeCoil(coliNum,val)
+    }
+    
+    
+    
+        console.log(`ip Of Set coil ${ip} coliNum ${coliNum} val ${val}`)
+      console.log(`ip Of Set coil ${ip} coliNum ${coliNum} val ${val}`)
+      console.log(`ip Of Set coil ${ip} coliNum ${coliNum} val ${val}`)
+      console.log(`ip Of Set coil ${ip} coliNum ${coliNum} val ${val}`)
+  }
+
+  function ToggleCoil(ip,coilNum)
+  {
+    var found = KnownLfCardList.find(function(element) {
+        return element.ip == ip;
+    });
+    if(!found)
+        alert("Some how viewing data to a unkown card please restart");
+    else
+    {
+        //coil reading works per byte, 8 coils per byte and I am lazy thus reading zero to the one I want 
+
+
+
+
+
+
+
+
+
+        found.modBus.readCoils(0,coilNum+1).then((data)=>
+        {
+            
+            if(data.data[coilNum])
+                SetCoil(ip,coilNum,false)
+            else
+                SetCoil(ip,coilNum,true)
+        })
+    }
+    
+    
+
+  }
 
   $('#viewInputRegisterModal').on('hide.bs.modal', function (event) {
 
@@ -766,5 +1250,10 @@ let MoveThisSomeHowIntoTheObject ;
   $('#viewHoldingRegister').on('hide.bs.modal', function (event) {
 
     clearInterval(MoveThisSomeHowIntoTheObject2);
+  })
+
+  $('#viewCoilsModal').on('hide.bs.modal', function (event) {
+
+    clearInterval(MoveThisSomeHowIntoTheObject3);
   })
 
